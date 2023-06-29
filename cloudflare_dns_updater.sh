@@ -1,6 +1,7 @@
 #!/bin/bash
 
-source config.env
+SCRIPT_PATH=$(dirname `which $0`)
+source "$SCRIPT_PATH/config.env"
 
 # Cloudflare API credentials
 zone_identifier=$ZONE_IDENTIFIER
@@ -9,7 +10,6 @@ cloudflare_account_email=$CLOUDFLARE_ACCOUNT_EMAIL
 
 comment_update_time=$(date)
 endpoint="https://api.cloudflare.com/client/v4/zones/$zone_identifier/dns_records/"
-
 
 declare -A dns_names_ids
 # Get all dns record names + ids for a zone
@@ -21,14 +21,13 @@ get_dns_records_for_zone() {
     -H "X-Auth-Key: $api_key")
 
   # TODO CAN I REPLACE THIS WITH A BUILT IN UTIL SO I DON'T HAVE ANY EXTRA DEPENDENCIES, MAYBE AWK?
-  local json=$(echo $response | jq '.result[] | select(.type == "A") | {name, id}')
+  local dns_records=$(echo $response | jq '.result[] | select(.type == "A") | {name, id}')
 
   # Extract the name and id and store a k/v pair
   while read -r name id; do
     dns_names_ids["$name"]=$id
-  done < <(echo "$json" | awk -F'"' '{ if ($2=="name") printf "%s ", $4; else if ($2=="id") printf "%s\n", $4 }')
+  done < <(echo "$dns_records" | awk -F'"' '{ if ($2=="name") printf "%s ", $4; else if ($2=="id") printf "%s\n", $4 }')
 }
-
 
 # Get IP address for DNS record
 get_cloudflare_dns_record_ip() {
